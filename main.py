@@ -1,3 +1,14 @@
+
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+#  main.py
+#  NatureBridge
+#
+#  Copyright 2020 Kenji Nishishiro. All rights reserved.
+#  Written by Kenji Nishishiro <marvel@programmershigh.org>.
+#
+
 import os
 import logging
 import signal
