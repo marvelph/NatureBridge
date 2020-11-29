@@ -13,7 +13,7 @@ import os
 import logging
 import signal
 
-from pyhap.const import CATEGORY_SENSOR, CATEGORY_LIGHTBULB, CATEGORY_AIR_CONDITIONER
+from pyhap.const import CATEGORY_SENSOR, CATEGORY_AIR_CONDITIONER, CATEGORY_TELEVISION, CATEGORY_LIGHTBULB
 from pyhap.accessory import Accessory, Bridge
 from pyhap.accessory_driver import AccessoryDriver
 from remo import NatureRemoAPI, NatureRemoError
@@ -245,6 +245,58 @@ class Aircon(NatureAccessory):
             raise ValueError
 
 
+class TV(NatureAccessory):
+
+    category = CATEGORY_TELEVISION
+
+    def __init__(self, driver, device, appliance):
+        super().__init__(driver, device, appliance)
+
+        self._television = self.add_preload_service('Television')
+        self._active = self._television.configure_char(
+            'Active',
+            value=0,  # Inactive
+            setter_callback=self._set_active
+        )
+        self._active_identifier = self._television.configure_char(
+            'ActiveIdentifier'
+        )
+        self._configured_name = self._television.configure_char(
+            'ConfiguredName'
+        )
+        self._sleep_discovery_mode = self._television.configure_char(
+            'SleepDiscoveryMode',
+            value=1  # AlwaysDiscoverable
+        )
+
+        self._default_input_source = self.add_preload_service('InputSource')
+        self._default_configured_name = self._default_input_source.configure_char(
+            'ConfiguredName'
+        )
+        self._default_input_source_type = self._default_input_source.configure_char(
+            'InputSourceType',
+            value=0  # Other
+        )
+        self._default_is_configured = self._default_input_source.configure_char(
+            'IsConfigured',
+            value=1  # Configured
+        )
+        self._default_current_visibility_state = self._default_input_source.configure_char(
+            'CurrentVisibilityState',
+            value=0  # Shown
+        )
+
+    def _set_active(self, value):
+        try:
+            api.send_tv_infrared_signal(self.appliance_id, 'power')
+
+        except NatureRemoError as exception:
+            logging.exception(exception)
+
+    def update(self, device, appliance):
+        pass
+
+
 class Light(NatureAccessory):
 
     category = CATEGORY_LIGHTBULB
@@ -315,6 +367,14 @@ for appliance in appliances:
 
     if appliance.type == 'AC':
         accessory = Aircon(
+            driver,
+            device,
+            appliance
+        )
+        bridge.add_accessory(accessory)
+
+    elif appliance.type == 'TV':
+        accessory = TV(
             driver,
             device,
             appliance
