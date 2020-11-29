@@ -125,27 +125,27 @@ class Aircon(NatureAccessory):
         self._temperature_unit = appliance.aircon.tempUnit
 
         # TODO: サーモスタットではなくエアコンと表示させたい。
-        thermostat = self.add_preload_service('Thermostat')
-        self._current_heating_cooling_state = thermostat.configure_char(
+        self._thermostat = self.add_preload_service('Thermostat')
+        self._current_heating_cooling_state = self._thermostat.configure_char(
             'CurrentHeatingCoolingState',
             value=self.toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button, current=True),
         )
-        self._target_heating_cooling_state = thermostat.configure_char(
+        self._target_heating_cooling_state = self._thermostat.configure_char(
             'TargetHeatingCoolingState',
             value=self.toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button),
             setter_callback=self.set_target_heating_cooling_state
         )
-        self._current_temperature = thermostat.configure_char(
+        self._current_temperature = self._thermostat.configure_char(
             'CurrentTemperature',
             value=device.newest_events.get('te').val
         )
-        self._target_temperature = thermostat.configure_char(
+        self._target_temperature = self._thermostat.configure_char(
             'TargetTemperature',
             value=self.toHomeKitTemperature(appliance.settings.temp),
             setter_callback=self.set_target_temperature
         )
         # エアコンの表示単位を変更する方法が無いので書き込みには対応できない。
-        self.temperature_display_units = thermostat.configure_char(
+        self._temperature_display_units = self._thermostat.configure_char(
             'TemperatureDisplayUnits',
             value=self.toHomeKitTemperatureUnits()
         )
@@ -253,8 +253,8 @@ class Light(NatureAccessory):
         super().__init__(driver, device, appliance)
 
         # Brightnessは絶対値で設定する方法が無いので対応できない。
-        lightbulb = self.add_preload_service('Lightbulb')
-        self._on = lightbulb.configure_char(
+        self._lightbulb = self.add_preload_service('Lightbulb')
+        self._on = self._lightbulb.configure_char(
             'On',
             value=self.toHomeKitPower(appliance.light.state.power),
             setter_callback=self.set_on
