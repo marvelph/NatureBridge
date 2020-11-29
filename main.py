@@ -45,10 +45,8 @@ class NatureBridge(Bridge):
 
     @Accessory.run_at_interval(60)
     async def run(self):
-        #
         # Nature APIのリクエスト制限を軽減する為に、一度に取得した値を複数のアクセサリで共有する。
-        # アクセサリの状態をそれぞれが更新する必要は無いので、Accessory.runは呼び出さない。
-        #
+        # アクセサリの状態をそれぞれが更新する必要は無いので、ブリッジに追加されているアクセサリのrunメソッドは呼び出さない。
         try:
             devices = api.get_devices()
             appliances = api.get_appliances()
@@ -152,7 +150,7 @@ class Aircon(NatureAccessory):
         )
 
     def set_target_heating_cooling_state(self, value):
-        # TODO: エアコンに設定できない運転モードであればAPIの呼び出しと現在の運転モードへの反映をスキップする。
+        # TODO: エアコンに設定できない運転モードであればAPIの呼び出しと実際の運転モードへの反映をスキップする。
         mode, button = self.toNatureHeatingCoolingState(value)
         try:
             api.update_aircon_settings(self.appliance_id, operation_mode=mode, button=button)
@@ -161,7 +159,7 @@ class Aircon(NatureAccessory):
             logging.exception(exception)
             return
 
-        # 運転モードの設定変更を即座に現在の運転モードに反映する。
+        # 運転モードの設定変更を即座に実際の運転モードに反映する。
         self._current_heating_cooling_state.set_value(
             self.toHomeKitHeatingCoolingState(mode, button, current=True)
         )
@@ -195,7 +193,7 @@ class Aircon(NatureAccessory):
             elif mode == 'blow':
                 return 2
             elif mode == 'auto':
-                # 自動運転中の実際の運転モードは判別する方法が無いので冷房と仮定している。
+                # 自動運転中の実際の運転モードを判別する方法が無いので冷房と仮定している。
                 if current:
                     return 2
                 else:
