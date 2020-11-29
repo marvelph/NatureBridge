@@ -85,22 +85,22 @@ class Sensor(NatureAccessory):
     def __init__(self, driver, device):
         super().__init__(driver, device)
 
-        temperature_sensor = self.add_preload_service('TemperatureSensor')
-        self._current_temperature = temperature_sensor.configure_char(
+        self._temperature_sensor = self.add_preload_service('TemperatureSensor')
+        self._current_temperature = self._temperature_sensor.configure_char(
             'CurrentTemperature',
             value=device.newest_events.get('te').val
         )
 
         if 'hu' in device.newest_events:
-            humidity_sensor = self.add_preload_service('HumiditySensor')
-            self._current_relative_humidity = humidity_sensor.configure_char(
+            self._humidity_sensor = self.add_preload_service('HumiditySensor')
+            self._current_relative_humidity = self._humidity_sensor.configure_char(
                 'CurrentRelativeHumidity',
                 value=device.newest_events.get('hu').val
             )
 
         if 'il' in device.newest_events:
-            light_sensor = self.add_preload_service('LightSensor')
-            self._current_ambient_light_level = light_sensor.configure_char(
+            self._light_sensor = self.add_preload_service('LightSensor')
+            self._current_ambient_light_level = self._light_sensor.configure_char(
                 'CurrentAmbientLightLevel',
                 value=device.newest_events.get('il').val
             )
@@ -128,12 +128,12 @@ class Aircon(NatureAccessory):
         self._thermostat = self.add_preload_service('Thermostat')
         self._current_heating_cooling_state = self._thermostat.configure_char(
             'CurrentHeatingCoolingState',
-            value=self.toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button, current=True),
+            value=self._toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button, current=True),
         )
         self._target_heating_cooling_state = self._thermostat.configure_char(
             'TargetHeatingCoolingState',
-            value=self.toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button),
-            setter_callback=self.set_target_heating_cooling_state
+            value=self._toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button),
+            setter_callback=self._set_target_heating_cooling_state
         )
         self._current_temperature = self._thermostat.configure_char(
             'CurrentTemperature',
@@ -141,18 +141,18 @@ class Aircon(NatureAccessory):
         )
         self._target_temperature = self._thermostat.configure_char(
             'TargetTemperature',
-            value=self.toHomeKitTemperature(appliance.settings.temp),
-            setter_callback=self.set_target_temperature
+            value=self._toHomeKitTemperature(appliance.settings.temp),
+            setter_callback=self._set_target_temperature
         )
         # エアコンの表示単位を変更する方法が無いので書き込みには対応できない。
         self._temperature_display_units = self._thermostat.configure_char(
             'TemperatureDisplayUnits',
-            value=self.toHomeKitTemperatureUnits()
+            value=self._toHomeKitTemperatureUnits()
         )
 
-    def set_target_heating_cooling_state(self, value):
+    def _set_target_heating_cooling_state(self, value):
         # TODO: エアコンに設定できない運転モードであればAPIの呼び出しと実際の運転モードへの反映をスキップする。
-        mode, button = self.toNatureHeatingCoolingState(value)
+        mode, button = self._toNatureHeatingCoolingState(value)
         try:
             api.update_aircon_settings(self.appliance_id, operation_mode=mode, button=button)
 
@@ -162,27 +162,27 @@ class Aircon(NatureAccessory):
 
         # 運転モードの設定変更を即座に実際の運転モードに反映する。
         self._current_heating_cooling_state.set_value(
-            self.toHomeKitHeatingCoolingState(mode, button, current=True)
+            self._toHomeKitHeatingCoolingState(mode, button, current=True)
         )
 
-    def set_target_temperature(self, value):
+    def _set_target_temperature(self, value):
         try:
-            api.update_aircon_settings(self.appliance_id, temperature=self.toNatureTemperature(value))
+            api.update_aircon_settings(self.appliance_id, temperature=self._toNatureTemperature(value))
 
         except NatureRemoError as exception:
             logging.exception(exception)
 
     def update(self, device, appliance):
         self._current_heating_cooling_state.set_value(
-            self.toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button, current=True)
+            self._toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button, current=True)
         )
         self._target_heating_cooling_state.set_value(
-            self.toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button)
+            self._toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button)
         )
         self._current_temperature.set_value(device.newest_events['te'].val)
-        self._target_temperature.set_value(self.toHomeKitTemperature(appliance.settings.temp))
+        self._target_temperature.set_value(self._toHomeKitTemperature(appliance.settings.temp))
 
-    def toHomeKitHeatingCoolingState(self, mode, button, current=False):
+    def _toHomeKitHeatingCoolingState(self, mode, button, current=False):
         if button == '':
             # HomeKitに設定できない運転モードは冷房と仮定している。
             if mode == 'cool':
@@ -206,7 +206,7 @@ class Aircon(NatureAccessory):
         else:
             raise ValueError
 
-    def toNatureHeatingCoolingState(self, value):
+    def _toNatureHeatingCoolingState(self, value):
         if value == 0:
             return None, 'power-off'
         elif value == 1:
@@ -218,7 +218,7 @@ class Aircon(NatureAccessory):
         else:
             raise ValueError
 
-    def toHomeKitTemperature(self, value):
+    def _toHomeKitTemperature(self, value):
         # HomeKitは0.1度刻みで温度を設定できる。
         if self._temperature_unit == 'c':
             return round(float(value), 1)
@@ -227,7 +227,7 @@ class Aircon(NatureAccessory):
         else:
             raise ValueError
 
-    def toNatureTemperature(self, value):
+    def _toNatureTemperature(self, value):
         # TODO: エアコンが対応している精度と範囲で近似値に丸める。
         if self._temperature_unit == 'c':
             return str(round(value))
@@ -236,7 +236,7 @@ class Aircon(NatureAccessory):
         else:
             raise ValueError
 
-    def toHomeKitTemperatureUnits(self):
+    def _toHomeKitTemperatureUnits(self):
         if self._temperature_unit == 'c':
             return 0
         elif self._temperature_unit == 'f':
@@ -256,21 +256,21 @@ class Light(NatureAccessory):
         self._lightbulb = self.add_preload_service('Lightbulb')
         self._on = self._lightbulb.configure_char(
             'On',
-            value=self.toHomeKitPower(appliance.light.state.power),
-            setter_callback=self.set_on
+            value=self._toHomeKitPower(appliance.light.state.power),
+            setter_callback=self._set_on
         )
 
-    def set_on(self, value):
+    def _set_on(self, value):
         try:
-            api.send_light_infrared_signal(self.appliance_id, self.toNaturePower(value))
+            api.send_light_infrared_signal(self.appliance_id, self._toNaturePower(value))
 
         except NatureRemoError as exception:
             logging.exception(exception)
 
     def update(self, device, appliance):
-        self._on.set_value(self.toHomeKitPower(appliance.light.state.power))
+        self._on.set_value(self._toHomeKitPower(appliance.light.state.power))
 
-    def toHomeKitPower(self, value):
+    def _toHomeKitPower(self, value):
         if value == 'on':
             return 1
         elif value == 'off':
@@ -278,7 +278,7 @@ class Light(NatureAccessory):
         else:
             raise ValueError
 
-    def toNaturePower(self, value):
+    def _toNaturePower(self, value):
         if value == 0:
             return 'off'
         elif value == 1:
