@@ -6,6 +6,8 @@ After = local-fs.target network-online.target
 WorkingDirectory = /opt/NatureBridge
 Environment = "ACCESS_TOKEN="
 ExecStart = /opt/NatureBridge/bin/python /opt/NatureBridge/main.py
+StandardOutput=append:/opt/NatureBridge/output.log
+StandardError=append:/opt/NatureBridge/error.log
 
 [Install]
 WantedBy = multi-user.target
