@@ -144,7 +144,7 @@ class Aircon(NatureAccessory):
             value=self.toHomeKitTemperature(appliance.settings.temp),
             setter_callback=self.set_target_temperature
         )
-        # 表示単位を変更する方法が無いので対応できない。
+        # エアコンの表示単位を変更する方法が無いので書き込みには対応できない。
         self.temperature_display_units = thermostat.configure_char(
             'TemperatureDisplayUnits',
             value=self.toHomeKitTemperatureUnits()
