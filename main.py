@@ -186,34 +186,34 @@ class Aircon(NatureAccessory):
         if button == '':
             # HomeKitに設定できない運転モードは冷房と仮定している。
             if mode == 'cool':
-                return 2
+                return 2  # Cool
             elif mode == 'warm':
-                return 1
+                return 1  # Heat
             elif mode == 'dry':
-                return 2
+                return 2  # Cool
             elif mode == 'blow':
-                return 2
+                return 2  # Cool
             elif mode == 'auto':
                 # 自動運転中に実際の運転モードを判別する方法が無いので冷房と仮定している。
                 if current:
-                    return 2
+                    return 2  # Cool
                 else:
-                    return 3
+                    return 3  # Auto
             else:
                 raise ValueError
         elif button == 'power-off':
-            return 0
+            return 0  # Off
         else:
             raise ValueError
 
     def _toNatureHeatingCoolingState(self, value):
-        if value == 0:
+        if value == 0:  # Off
             return None, 'power-off'
-        elif value == 1:
+        elif value == 1:  # Heat
             return 'warm', ''
-        elif value == 2:
+        elif value == 2:  # Cool
             return 'cool', ''
-        elif value == 3:
+        elif value == 3:  # Auto
             return 'auto', ''
         else:
             raise ValueError
@@ -238,9 +238,9 @@ class Aircon(NatureAccessory):
 
     def _toHomeKitTemperatureUnits(self):
         if self._temperature_unit == 'c':
-            return 0
+            return 0  # Celsius
         elif self._temperature_unit == 'f':
-            return 1
+            return 1  # Fahrenheit
         else:
             raise ValueError
 
@@ -272,16 +272,16 @@ class Light(NatureAccessory):
 
     def _toHomeKitPower(self, value):
         if value == 'on':
-            return 1
+            return 1  # true
         elif value == 'off':
-            return 0
+            return 0  # false
         else:
             raise ValueError
 
     def _toNaturePower(self, value):
-        if value == 0:
+        if value == 0:  # false
             return 'off'
-        elif value == 1:
+        elif value == 1:  # true
             return 'on'
         else:
             raise ValueError
