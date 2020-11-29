@@ -193,7 +193,7 @@ class Aircon(NatureAccessory):
             elif mode == 'blow':
                 return 2
             elif mode == 'auto':
-                # 自動運転中の実際の運転モードを判別する方法が無いので冷房と仮定している。
+                # 自動運転中に実際の運転モードを判別する方法が無いので冷房と仮定している。
                 if current:
                     return 2
                 else:
