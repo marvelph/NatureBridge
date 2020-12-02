@@ -257,11 +257,13 @@ class TV(NatureAccessory):
         super().__init__(driver, device, appliance)
 
         self._television = self.add_preload_service('Television')
+        # 電源のオン・オフを判別する方法が無いのでオフと仮定している。
         self._active = self._television.configure_char(
             'Active',
             value=0,  # Inactive
             setter_callback=self._set_active
         )
+        # 入力ソースは単一である為変更に対応する必要はない。
         self._active_identifier = self._television.configure_char(
             'ActiveIdentifier'
         )
@@ -273,6 +275,7 @@ class TV(NatureAccessory):
             value=1  # AlwaysDiscoverable
         )
 
+        # TVを認識させるためには入力ソースが必須なのでデフォルトの入力ソースを用意している。
         self._default_input_source = self.add_preload_service('InputSource')
         self._default_configured_name = self._default_input_source.configure_char(
             'ConfiguredName'
@@ -292,6 +295,7 @@ class TV(NatureAccessory):
 
     def _set_active(self, value):
         try:
+            # 電源ボタンをトグル式と仮定している。
             api.send_tv_infrared_signal(self.appliance_id, 'power')
 
         except NatureRemoError as exception:
