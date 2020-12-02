@@ -45,8 +45,8 @@ class NatureBridge(Bridge):
 
     @Accessory.run_at_interval(60)
     async def run(self):
-        # Nature APIのリクエスト制限を軽減する為に、一度に取得した値を複数のアクセサリで共有する。
-        # アクセサリの状態をそれぞれが更新する必要は無いので、ブリッジに追加されているアクセサリのrunメソッドは呼び出さない。
+        # Nature APIのリクエスト制限を軽減する為に、一度のAPI呼び出しで取得した値を使って全てのアクセサリを更新する。
+        # アクセサリの状態をそれぞれが能動的に更新する必要は無いので、ブリッジに追加されているアクセサリのrunメソッドは呼び出さない。
         try:
             devices = api.get_devices()
             appliances = api.get_appliances()
@@ -85,6 +85,9 @@ class Sensor(NatureAccessory):
     def __init__(self, driver, device):
         super().__init__(driver, device)
 
+        # TODO: 人感センサーの対応方法を考える。
+
+        # 温度センサーは必ず利用できると仮定している。
         self._temperature_sensor = self.add_preload_service('TemperatureSensor')
         self._current_temperature = self._temperature_sensor.configure_char(
             'CurrentTemperature',
@@ -125,6 +128,7 @@ class Aircon(NatureAccessory):
         self._temperature_unit = appliance.aircon.tempUnit
 
         # TODO: サーモスタットではなくエアコンと表示させたい。
+
         self._thermostat = self.add_preload_service('Thermostat')
         self._current_heating_cooling_state = self._thermostat.configure_char(
             'CurrentHeatingCoolingState',
@@ -144,14 +148,14 @@ class Aircon(NatureAccessory):
             value=self._toHomeKitTemperature(appliance.settings.temp),
             setter_callback=self._set_target_temperature
         )
-        # エアコンの表示単位を変更する方法が無いので書き込みには対応できない。
+        # エアコンの表示単位を変更する方法は無いので書き込みには対応できない。
         self._temperature_display_units = self._thermostat.configure_char(
             'TemperatureDisplayUnits',
             value=self._toHomeKitTemperatureUnits()
         )
 
     def _set_target_heating_cooling_state(self, value):
-        # TODO: エアコンに設定できない運転モードであればAPIの呼び出しと実際の運転モードへの反映をスキップする。
+        # TODO: エアコンに設定できない運転モードであればAPIの呼び出しと実際の運転モードとしての反映をスキップするべき。
         mode, button = self._toNatureHeatingCoolingState(value)
         try:
             api.update_aircon_settings(self.appliance_id, operation_mode=mode, button=button)
@@ -160,7 +164,7 @@ class Aircon(NatureAccessory):
             logging.exception(exception)
             return
 
-        # 運転モードの設定変更を即座に実際の運転モードに反映する。
+        # 運転モードの設定変更を即座に実際の運転モードとして反映する。
         self._current_heating_cooling_state.set_value(
             self._toHomeKitHeatingCoolingState(mode, button, current=True)
         )
@@ -228,7 +232,7 @@ class Aircon(NatureAccessory):
             raise ValueError
 
     def _toNatureTemperature(self, value):
-        # TODO: エアコンが対応している精度と範囲で近似値に丸める。
+        # TODO: エアコンが対応している精度と範囲で近似値に丸めるべき。
         if self._temperature_unit == 'c':
             return str(round(value))
         elif self._temperature_unit == 'f':
@@ -304,7 +308,8 @@ class Light(NatureAccessory):
     def __init__(self, driver, device, appliance):
         super().__init__(driver, device, appliance)
 
-        # Brightnessは絶対値で設定する方法が無いので対応できない。
+        # 照度を絶対値で設定する方法は無いので対応できない。
+
         self._lightbulb = self.add_preload_service('Lightbulb')
         self._on = self._lightbulb.configure_char(
             'On',
@@ -339,7 +344,7 @@ class Light(NatureAccessory):
             raise ValueError
 
 
-# TODO: ペアリングをやり直す場合の場合の対応を考える。
+# TODO: ペアリングをやり直す場合の対応を考える。
 driver = AccessoryDriver(port=51826)
 
 try:
@@ -352,7 +357,7 @@ except NatureRemoError as exception:
 
 bridge = NatureBridge(driver, user.nickname)
 
-# TODO: 再起動時にアクセサリが増減するとHomeKit側の対応が崩れる問題の対応を考える。
+# TODO: 再起動時にアクセサリが増減するとHomeKit側との対応が崩れる問題の対応を考える。
 for device in devices:
     accessory = Sensor(
         driver,
