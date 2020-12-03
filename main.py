@@ -263,7 +263,6 @@ class TV(NatureAccessory):
             value=0,  # Inactive
             setter_callback=self._set_active
         )
-        # 入力ソースは単一である為変更に対応する必要はない。
         self._active_identifier = self._television.configure_char(
             'ActiveIdentifier'
         )
@@ -275,34 +274,58 @@ class TV(NatureAccessory):
             value=1  # AlwaysDiscoverable
         )
 
-        # TVを認識させるためには入力ソースが必須なのでデフォルトの入力ソースを用意している。
-        self._default_input_source = self.add_preload_service('InputSource')
-        self._default_configured_name = self._default_input_source.configure_char(
-            'ConfiguredName'
+        self._television_speaker = self.add_preload_service(
+            'TelevisionSpeaker', ['Mute', 'VolumeControlType', 'VolumeSelector']
         )
-        self._default_input_source_type = self._default_input_source.configure_char(
-            'InputSourceType',
-            value=0  # Other
+        # 消音のオン・オフを判別する方法が無いのでオフと仮定している。
+        self._mute = self._television_speaker.configure_char(
+            'Mute',
+            value=0,  # false
+            setter_callback=self._set_mute
         )
-        self._default_is_configured = self._default_input_source.configure_char(
-            'IsConfigured',
-            value=1  # Configured
+        self._volume_control_type = self._television_speaker.configure_char(
+            'VolumeControlType',
+            value=1  # Relative
         )
-        self._default_current_visibility_state = self._default_input_source.configure_char(
-            'CurrentVisibilityState',
-            value=0  # Shown
+        self._volume_selector = self._television_speaker.configure_char(
+            'VolumeSelector',
+            setter_callback=self._set_volume_selector
         )
 
     def _set_active(self, value):
         try:
-            # 電源ボタンをトグル式と仮定している。
+            # TODO: 送信できないボタンであればAPIの呼び出しをスキップするべき。
             api.send_tv_infrared_signal(self.appliance_id, 'power')
+
+        except NatureRemoError as exception:
+            logging.exception(exception)
+
+    def _set_mute(self, value):
+        try:
+            # TODO: 送信できないボタンであればAPIの呼び出しをスキップするべき。
+            api.send_tv_infrared_signal(self.appliance_id, 'mute')
+
+        except NatureRemoError as exception:
+            logging.exception(exception)
+
+    def _set_volume_selector(self, value):
+        try:
+            # TODO: 送信できないボタンであればAPIの呼び出しをスキップするべき。
+            api.send_tv_infrared_signal(self.appliance_id, self._toNatureVol(value))
 
         except NatureRemoError as exception:
             logging.exception(exception)
 
     def update(self, device, appliance):
         pass
+
+    def _toNatureVol(self, value):
+        if value == 0:  # Increment
+            return 'vol-up'
+        elif value == 1:  # Decrement
+            return 'vol-down'
+        else:
+            raise ValueError
 
 
 class Light(NatureAccessory):
@@ -382,7 +405,7 @@ for appliance in appliances:
         )
         bridge.add_accessory(accessory)
 
-    elif appliance.type == 'TV':
+    if appliance.type == 'TV':
         accessory = TV(
             driver,
             device,
