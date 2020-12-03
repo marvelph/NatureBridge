@@ -256,7 +256,10 @@ class TV(NatureAccessory):
     def __init__(self, driver, device, appliance):
         super().__init__(driver, device, appliance)
 
-        self._television = self.add_preload_service('Television')
+        self._television = self.add_preload_service(
+            'Television',
+            chars=['Active', 'ActiveIdentifier', 'ConfiguredName', 'RemoteKey', 'SleepDiscoveryMode']
+        )
         # 電源のオン・オフを判別する方法が無いのでオフと仮定している。
         self._active = self._television.configure_char(
             'Active',
@@ -269,13 +272,18 @@ class TV(NatureAccessory):
         self._configured_name = self._television.configure_char(
             'ConfiguredName'
         )
+        self._remote_key = self._television.configure_char(
+            'RemoteKey',
+            setter_callback=self._set_remote_key
+        )
         self._sleep_discovery_mode = self._television.configure_char(
             'SleepDiscoveryMode',
             value=1  # AlwaysDiscoverable
         )
 
         self._television_speaker = self.add_preload_service(
-            'TelevisionSpeaker', ['Mute', 'VolumeControlType', 'VolumeSelector']
+            'TelevisionSpeaker',
+            chars=['Mute', 'VolumeControlType', 'VolumeSelector']
         )
         # 消音のオン・オフを判別する方法が無いのでオフと仮定している。
         self._mute = self._television_speaker.configure_char(
@@ -300,6 +308,14 @@ class TV(NatureAccessory):
         except NatureRemoError as exception:
             logging.exception(exception)
 
+    def _set_remote_key(self, value):
+        try:
+            # TODO: 送信できないボタンであればAPIの呼び出しをスキップするべき。
+            api.send_tv_infrared_signal(self.appliance_id, self._toNatureKey(value))
+
+        except NatureRemoError as exception:
+            logging.exception(exception)
+
     def _set_mute(self, value):
         try:
             # TODO: 送信できないボタンであればAPIの呼び出しをスキップするべき。
@@ -311,7 +327,7 @@ class TV(NatureAccessory):
     def _set_volume_selector(self, value):
         try:
             # TODO: 送信できないボタンであればAPIの呼び出しをスキップするべき。
-            api.send_tv_infrared_signal(self.appliance_id, self._toNatureVol(value))
+            api.send_tv_infrared_signal(self.appliance_id, self._toNatureVolume(value))
 
         except NatureRemoError as exception:
             logging.exception(exception)
@@ -319,7 +335,38 @@ class TV(NatureAccessory):
     def update(self, device, appliance):
         pass
 
-    def _toNatureVol(self, value):
+    def _toNatureKey(self, value):
+        if value == 0:  # Rewind
+            return 'fast-rewind'
+        elif value == 1:  # FastForward
+            return 'fast-forward'
+        elif value == 2:  # NextTrack
+            return 'next'
+        elif value == 3:  # PreviousTrack
+            return 'prev'
+        elif value == 4:  # ArrowUp
+            return 'up'
+        elif value == 5:  # ArrowDown
+            return 'down'
+        elif value == 6:  # ArrowLeft
+            return 'left'
+        elif value == 7:  # ArrowRight
+            return 'right'
+        elif value == 8:  # Select
+            return 'ok'
+        elif value == 9:  # Back
+            return 'back'
+        # TODO: Exitキーの用途を調査する。
+        elif value == 10:  # Exit
+            return ''
+        elif value == 11:  # PlayPause
+            return 'pause'
+        elif value == 15:  # Information
+            return 'tv-schedule'
+        else:
+            raise ValueError
+
+    def _toNatureVolume(self, value):
         if value == 0:  # Increment
             return 'vol-up'
         elif value == 1:  # Decrement
@@ -405,7 +452,7 @@ for appliance in appliances:
         )
         bridge.add_accessory(accessory)
 
-    if appliance.type == 'TV':
+    elif appliance.type == 'TV':
         accessory = TV(
             driver,
             device,
