@@ -22,8 +22,6 @@ logging.basicConfig(level=logging.INFO, format="[%(module)s] %(message)s")
 
 api = NatureRemoAPI(os.environ['ACCESS_TOKEN'])
 
-persist_file = os.path.join(os.environ['DATA_DIRECTORY'], 'accessory.state')
-
 
 class NatureAccessory(Accessory):
 
@@ -421,6 +419,10 @@ class Light(NatureAccessory):
 
 
 # TODO: ペアリングをやり直す場合の対応を考える。
+data_directory = os.environ['DATA_DIRECTORY']
+os.makedirs(data_directory, exist_ok=True)
+persist_file = os.path.join(data_directory, 'accessory.state')
+
 driver = AccessoryDriver(port=51826, persist_file=persist_file)
 
 try:
