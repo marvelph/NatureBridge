@@ -22,6 +22,8 @@ logging.basicConfig(level=logging.INFO, format="[%(module)s] %(message)s")
 
 api = NatureRemoAPI(os.environ['ACCESS_TOKEN'])
 
+persist_file = os.path.join(os.environ['DATA_DIRECTORY'], 'accessory.state')
+
 
 class NatureAccessory(Accessory):
 
@@ -419,7 +421,7 @@ class Light(NatureAccessory):
 
 
 # TODO: ペアリングをやり直す場合の対応を考える。
-driver = AccessoryDriver(port=51826)
+driver = AccessoryDriver(port=51826, persist_file=persist_file)
 
 try:
     user = api.get_user()
