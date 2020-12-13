@@ -6,7 +6,7 @@ After = local-fs.target network-online.target
 WorkingDirectory = /opt/NatureBridge
 Environment = "ACCESS_TOKEN=<enter here>"
 Environment = "DATA_DIRECTORY=/opt/NatureBridge/data"
-ExecStart = /opt/NatureBridge/bin/python /opt/NatureBridge/main.py
+ExecStart = /opt/NatureBridge/bin/python /opt/NatureBridge/naturebridge.py
 StandardOutput=append:/opt/NatureBridge/output.log
 StandardError=append:/opt/NatureBridge/error.log
 

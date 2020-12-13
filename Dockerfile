@@ -1,12 +1,11 @@
-FROM python
+FROM python:3.9.1-buster
 
-COPY requirements.txt /NatureBridge/requirements.txt
-WORKDIR /NatureBridge
-RUN pip install --no-cache-dir -U -r requirements.txt
+RUN pip install --no-cache-dir HAP-python==3.0.0 nature-remo==0.3.1
 
-COPY main.py /NatureBridge/main.py
+COPY naturebridge.py /NatureBridge/naturebridge.py
 
 ENV PYTHONUNBUFFERED 1
 ENV ACCESS_TOKEN <enter here>
 ENV DATA_DIRECTORY=/NatureBridge/data
-CMD ["python", "main.py"]
+
+CMD ["python", "/NatureBridge/naturebridge.py"]
