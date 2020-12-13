@@ -2,7 +2,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  main.py
+#  naturebridge.py
 #  NatureBridge
 #
 #  Copyright 2020 Kenji Nishishiro. All rights reserved.
