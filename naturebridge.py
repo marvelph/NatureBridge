@@ -9,13 +9,14 @@
 #  Written by Kenji Nishishiro <marvel@programmershigh.org>.
 #
 
-import os
 import logging
+import os
 import signal
 
-from pyhap.const import CATEGORY_SENSOR, CATEGORY_AIR_CONDITIONER, CATEGORY_TELEVISION, CATEGORY_LIGHTBULB
 from pyhap.accessory import Accessory, Bridge
 from pyhap.accessory_driver import AccessoryDriver
+from pyhap.const import (CATEGORY_AIR_CONDITIONER, CATEGORY_LIGHTBULB,
+                         CATEGORY_SENSOR, CATEGORY_TELEVISION)
 from remo import NatureRemoAPI, NatureRemoError
 
 logging.basicConfig(level=logging.INFO, format="[%(module)s] %(message)s")
@@ -30,14 +31,14 @@ class NatureAccessory(Accessory):
             super().__init__(driver, device.name)
 
             self.device_id = device.id
-            self.appliance_id = None 
-            self.appliance_type = None 
+            self.appliance_id = None
+            self.appliance_type = None
 
         else:
             super().__init__(driver, appliance.nickname)
 
             self.device_id = device.id
-            self.appliance_id = appliance.id 
+            self.appliance_id = appliance.id
             self.appliance_type = appliance.type
 
 
@@ -58,20 +59,23 @@ class NatureBridge(Bridge):
         # TODO: アクセサリの増減や変更を検出した場合の対応を考える。
         for accessory in self.accessories.values():
             if accessory.appliance_id is None:
-                device = next(filter(lambda device: device.id == accessory.device_id, devices), None)
+                device = next(filter(lambda device: device.id ==
+                                     accessory.device_id, devices), None)
                 if device is None:
                     continue
 
                 accessory.update(device)
 
             else:
-                appliance = next(filter(lambda appliance: appliance.id == accessory.appliance_id, appliances), None)
+                appliance = next(filter(
+                    lambda appliance: appliance.id == accessory.appliance_id, appliances), None)
                 if appliance is None:
                     continue
                 if appliance.type != accessory.appliance_type:
                     continue
 
-                device = next(filter(lambda device: device.id == appliance.device.id, devices), None)
+                device = next(filter(lambda device: device.id ==
+                                     appliance.device.id, devices), None)
                 if device is None:
                     continue
 
@@ -88,7 +92,8 @@ class Sensor(NatureAccessory):
         # TODO: 人感センサーの対応方法を考える。
 
         # 温度センサーは必ず利用できると仮定している。
-        self._temperature_sensor = self.add_preload_service('TemperatureSensor')
+        self._temperature_sensor = self.add_preload_service(
+            'TemperatureSensor')
         self._current_temperature = self._temperature_sensor.configure_char(
             'CurrentTemperature',
             value=device.newest_events.get('te').val
@@ -112,10 +117,12 @@ class Sensor(NatureAccessory):
         self._current_temperature.set_value(device.newest_events['te'].val)
 
         if hasattr(self, '_current_relative_humidity') and 'hu' in device.newest_events:
-            self._current_relative_humidity.set_value(device.newest_events['hu'].val)
+            self._current_relative_humidity.set_value(
+                device.newest_events['hu'].val)
 
         if hasattr(self, '_current_ambient_light_level') and 'il' in device.newest_events:
-            self._current_ambient_light_level.set_value(device.newest_events['il'].val)
+            self._current_ambient_light_level.set_value(
+                device.newest_events['il'].val)
 
 
 class Aircon(NatureAccessory):
@@ -132,11 +139,13 @@ class Aircon(NatureAccessory):
         self._thermostat = self.add_preload_service('Thermostat')
         self._current_heating_cooling_state = self._thermostat.configure_char(
             'CurrentHeatingCoolingState',
-            value=self._toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button, current=True),
+            value=self._toHomeKitHeatingCoolingState(
+                appliance.settings.mode, appliance.settings.button, current=True),
         )
         self._target_heating_cooling_state = self._thermostat.configure_char(
             'TargetHeatingCoolingState',
-            value=self._toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button),
+            value=self._toHomeKitHeatingCoolingState(
+                appliance.settings.mode, appliance.settings.button),
             setter_callback=self._set_target_heating_cooling_state
         )
         self._current_temperature = self._thermostat.configure_char(
@@ -158,7 +167,8 @@ class Aircon(NatureAccessory):
         # TODO: エアコンに設定できない運転モードであればAPIの呼び出しと実際の運転モードとしての反映をスキップするべき。
         mode, button = self._toNatureHeatingCoolingState(value)
         try:
-            api.update_aircon_settings(self.appliance_id, operation_mode=mode, button=button)
+            api.update_aircon_settings(
+                self.appliance_id, operation_mode=mode, button=button)
 
         except NatureRemoError as exception:
             logging.exception(exception)
@@ -171,20 +181,24 @@ class Aircon(NatureAccessory):
 
     def _set_target_temperature(self, value):
         try:
-            api.update_aircon_settings(self.appliance_id, temperature=self._toNatureTemperature(value))
+            api.update_aircon_settings(
+                self.appliance_id, temperature=self._toNatureTemperature(value))
 
         except NatureRemoError as exception:
             logging.exception(exception)
 
     def update(self, device, appliance):
         self._current_heating_cooling_state.set_value(
-            self._toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button, current=True)
+            self._toHomeKitHeatingCoolingState(
+                appliance.settings.mode, appliance.settings.button, current=True)
         )
         self._target_heating_cooling_state.set_value(
-            self._toHomeKitHeatingCoolingState(appliance.settings.mode, appliance.settings.button)
+            self._toHomeKitHeatingCoolingState(
+                appliance.settings.mode, appliance.settings.button)
         )
         self._current_temperature.set_value(device.newest_events['te'].val)
-        self._target_temperature.set_value(self._toHomeKitTemperature(appliance.settings.temp))
+        self._target_temperature.set_value(
+            self._toHomeKitTemperature(appliance.settings.temp))
 
     def _toHomeKitHeatingCoolingState(self, mode, button, current=False):
         if button == '':
@@ -258,7 +272,8 @@ class TV(NatureAccessory):
 
         self._television = self.add_preload_service(
             'Television',
-            chars=['Active', 'ActiveIdentifier', 'ConfiguredName', 'RemoteKey', 'SleepDiscoveryMode']
+            chars=['Active', 'ActiveIdentifier', 'ConfiguredName',
+                   'RemoteKey', 'SleepDiscoveryMode']
         )
         # 電源のオン・オフを判別する方法が無いのでオフと仮定している。
         self._active = self._television.configure_char(
@@ -311,7 +326,8 @@ class TV(NatureAccessory):
     def _set_remote_key(self, value):
         try:
             # TODO: 送信できないボタンであればAPIの呼び出しをスキップするべき。
-            api.send_tv_infrared_signal(self.appliance_id, self._toNatureKey(value))
+            api.send_tv_infrared_signal(
+                self.appliance_id, self._toNatureKey(value))
 
         except NatureRemoError as exception:
             logging.exception(exception)
@@ -327,7 +343,8 @@ class TV(NatureAccessory):
     def _set_volume_selector(self, value):
         try:
             # TODO: 送信できないボタンであればAPIの呼び出しをスキップするべき。
-            api.send_tv_infrared_signal(self.appliance_id, self._toNatureVolume(value))
+            api.send_tv_infrared_signal(
+                self.appliance_id, self._toNatureVolume(value))
 
         except NatureRemoError as exception:
             logging.exception(exception)
@@ -393,7 +410,8 @@ class Light(NatureAccessory):
 
     def _set_on(self, value):
         try:
-            api.send_light_infrared_signal(self.appliance_id, self._toNaturePower(value))
+            api.send_light_infrared_signal(
+                self.appliance_id, self._toNaturePower(value))
 
         except NatureRemoError as exception:
             logging.exception(exception)
@@ -444,7 +462,8 @@ for device in devices:
     bridge.add_accessory(accessory)
 
 for appliance in appliances:
-    device = next(filter(lambda device: device.id == appliance.device.id, devices), None)
+    device = next(filter(lambda device: device.id ==
+                         appliance.device.id, devices), None)
     if device is None:
         continue
 
