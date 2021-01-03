@@ -9,6 +9,7 @@
 #  Written by Kenji Nishishiro <marvel@programmershigh.org>.
 #
 
+import json
 import logging
 import os
 import signal
@@ -26,16 +27,16 @@ api = NatureRemoAPI(os.environ['ACCESS_TOKEN'])
 
 class NatureAccessory(Accessory):
 
-    def __init__(self, driver, device, appliance=None):
+    def __init__(self, driver, aid, device, appliance=None):
         if appliance is None:
-            super().__init__(driver, device.name)
+            super().__init__(driver, device.name, aid=aid)
 
             self.device_id = device.id
             self.appliance_id = None
             self.appliance_type = None
 
         else:
-            super().__init__(driver, appliance.nickname)
+            super().__init__(driver, appliance.nickname, aid=aid)
 
             self.device_id = device.id
             self.appliance_id = appliance.id
@@ -86,8 +87,8 @@ class Sensor(NatureAccessory):
 
     category = CATEGORY_SENSOR
 
-    def __init__(self, driver, device):
-        super().__init__(driver, device)
+    def __init__(self, driver, aid, device):
+        super().__init__(driver, aid, device)
 
         # TODO: 人感センサーの対応方法を考える。
 
@@ -129,8 +130,8 @@ class Aircon(NatureAccessory):
 
     category = CATEGORY_AIR_CONDITIONER
 
-    def __init__(self, driver, device, appliance):
-        super().__init__(driver, device, appliance)
+    def __init__(self, driver, aid, device, appliance):
+        super().__init__(driver, aid, device, appliance)
 
         self._temperature_unit = appliance.aircon.tempUnit
 
@@ -267,8 +268,8 @@ class TV(NatureAccessory):
 
     category = CATEGORY_TELEVISION
 
-    def __init__(self, driver, device, appliance):
-        super().__init__(driver, device, appliance)
+    def __init__(self, driver, aid, device, appliance):
+        super().__init__(driver, aid, device, appliance)
 
         self._television = self.add_preload_service(
             'Television',
@@ -396,8 +397,8 @@ class Light(NatureAccessory):
 
     category = CATEGORY_LIGHTBULB
 
-    def __init__(self, driver, device, appliance):
-        super().__init__(driver, device, appliance)
+    def __init__(self, driver, aid, device, appliance):
+        super().__init__(driver, aid, device, appliance)
 
         # 照度を絶対値で設定する方法は無いので対応できない。
 
@@ -436,12 +437,35 @@ class Light(NatureAccessory):
             raise ValueError
 
 
-# TODO: ペアリングをやり直す場合の対応を考える。
+class AIDGenerator:
+
+    def __init__(self):
+        self.aids = {}
+
+    def load(self, file_path):
+        if os.path.exists(file_path):
+            with open(file_path) as file:
+                self.aids = json.load(file)
+
+    def save(self, file_path):
+        with open(file_path, 'w') as file:
+            json.dump(self.aids, file)
+
+    def get(self, id):
+        if id in self.aids:
+            return self.aids[id]
+        else:
+            aid = max(list(self.aids.values()) + [1]) + 1
+            self.aids[id] = aid
+            return aid
+
+
 data_directory = os.environ['DATA_DIRECTORY']
 os.makedirs(data_directory, exist_ok=True)
-persist_file = os.path.join(data_directory, 'accessory.state')
 
-driver = AccessoryDriver(port=51826, persist_file=persist_file)
+# TODO: ペアリングをやり直す場合の対応を考える。
+path = os.path.join(data_directory, 'accessory.state')
+driver = AccessoryDriver(port=51826, persist_file=path)
 
 try:
     user = api.get_user()
@@ -453,14 +477,20 @@ except NatureRemoError as exception:
 
 bridge = NatureBridge(driver, user.nickname)
 
-# TODO: 再起動時にアクセサリが増減するとHomeKit側との対応が崩れる問題の対応を考える。
+generator = AIDGenerator()
+path = os.path.join(data_directory, 'aids.json')
+generator.load(path)
+
 for device in devices:
+    aid = generator.get(device.id)
     accessory = Sensor(
         driver,
+        aid,
         device
     )
     bridge.add_accessory(accessory)
 
+appliances.reverse()
 for appliance in appliances:
     device = next(filter(lambda device: device.id ==
                          appliance.device.id, devices), None)
@@ -468,28 +498,36 @@ for appliance in appliances:
         continue
 
     if appliance.type == 'AC':
+        aid = generator.get(appliance.id)
         accessory = Aircon(
             driver,
+            aid,
             device,
             appliance
         )
         bridge.add_accessory(accessory)
 
     elif appliance.type == 'TV':
+        aid = generator.get(appliance.id)
         accessory = TV(
             driver,
+            aid,
             device,
             appliance
         )
         bridge.add_accessory(accessory)
 
     elif appliance.type == 'LIGHT':
+        aid = generator.get(appliance.id)
         accessory = Light(
             driver,
+            aid,
             device,
             appliance
         )
         bridge.add_accessory(accessory)
+
+generator.save(path)
 
 driver.add_accessory(bridge)
 
